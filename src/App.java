@@ -9,57 +9,67 @@ public class App {
 
     public static void main(String[] args) throws Exception {
         Window w = new Window("Evolution System");
+        Perlin1D p = new Perlin1D(1000, System.currentTimeMillis());
 
-        int left = KeyEvent.VK_Q, right = KeyEvent.VK_D, up = KeyEvent.VK_Z, down = KeyEvent.VK_S, space = KeyEvent.VK_SPACE, escape = KeyEvent.VK_ESCAPE;
+        int left = KeyEvent.VK_Q, right = KeyEvent.VK_D, up = KeyEvent.VK_Z, down = KeyEvent.VK_S,
+                space = KeyEvent.VK_SPACE, escape = KeyEvent.VK_ESCAPE;
 
         boolean start = false;
 
         double dt = 0.1;
         double tick = 0;
 
-        Entity er = new Entity(50, 50, 10, 700);
+        Particule p1 = new Particule(new vect(1000, 200), new vect(0, 0), 5, 10, 10, 10);
+        Particule p2 = new Particule(new vect(1100, 200), new vect(0, 0), 5, 10, 10, 10);
+        Particule p3 = new Particule(new vect(1000, 100), new vect(0, 0), 4, 10, 10, 10);
+
+        Entity e = new Entity(new Particule[]{p1, p2, p3}, new Stick[]{
+                new Stick(p1, p2), new Stick(p2, p3)});
+        Entity er = new Entity(10, 10, 10, 700);
 
         while (!w.keypressed(escape)) {
             w.clear(Color.gray);
 
-
-            for(int i = 0; i<5000; i+=100) {
-                w.drawLine(i, (int) (Particule.floor(i)), i+100, (int) (Particule.floor(i+100)), 4, Color.black);
+            for (int i = 0; i < 5000; i += 10) {
+                w.drawLine(i, (int) (Particule.floor(i, p)), i + 10, (int) (Particule.floor(i + 10, p)), 4,
+                        Color.black);
             }
 
-            //e.draw(w);
+            // e.draw(w);
             er.draw(w);
+            e.draw(w);
 
-            if(w.keypressed(space) && w.cooldown(space, 200)) {
+            if (w.keypressed(space) && w.cooldown(space, 200)) {
                 w.resetcooldown(space);
                 System.out.println("wtf");
                 start = !start;
             }
 
             // if(w.keypressed(left) && w.cooldown(left, 200)) {
-            //     w.resetcooldown(left);
-            //     p1.addStrenght(new vect(-10, 0));
+            // w.resetcooldown(left);
+            // p1.addStrenght(new vect(-10, 0));
             // }
 
             // if(w.keypressed(right) && w.cooldown(right, 200)) {
-            //     w.resetcooldown(right);
-            //     p1.addStrenght(new vect(10, 0));
+            // w.resetcooldown(right);
+            // p1.addStrenght(new vect(10, 0));
             // }
 
-            // if(w.keypressed(up) && w.cooldown(up, 200)) {
-            //     w.resetcooldown(up);
-            //     p1.addStrenght(new vect(0, -10));
-            // }
+            if(w.keypressed(up) && w.cooldown(up, 200)) {
+                w.resetcooldown(up);
+                p1.addStrenght(new vect(0, -10));
+            }
 
             // if(w.keypressed(down) && w.cooldown(down, 200)) {
-            //     w.resetcooldown(down);
-            //     p1.addStrenght(new vect(0, 10));
+            // w.resetcooldown(down);
+            // p1.addStrenght(new vect(0, 10));
             // }
 
             if (start) {
-                er.process(dt, tick);
+                er.process(dt, tick, p);
+                e.process(dt, tick, p);
 
-                //e.process(dt);
+                // e.process(dt);
             }
 
             tick += dt;
@@ -93,8 +103,8 @@ class vect {
     }
 
     public vect scale(double dt) {
-        x*=dt;
-        y*=dt;
+        x *= dt;
+        y *= dt;
         return this;
     }
 
@@ -124,8 +134,6 @@ class vect {
 
 class Particule {
 
-
-
     public vect position;
     public vect prev_pos;
     public vect velocity;
@@ -140,6 +148,7 @@ class Particule {
             this.tick_len = tick_len;
         }
     }
+
     public ArrayList<Movement> Movements = new ArrayList<>();
     public int actual_mov = 0;
     public double start_dt_actual = 0;
@@ -150,16 +159,18 @@ class Particule {
         velocity = vel;
         this.mass = mass;
 
-        for(int i = 0; i<inteligence; i++) {
-            double tx = Math.random()*strenght;
-            double ty = Math.random()*strenght;
-            Movements.add(new Movement(new vect(tx*(Math.random()*10%2==0?-1:1), ty*(Math.random()*10%2==0?-1:1)), Math.random()*endurance + 1));
+        for (int i = 0; i < inteligence; i++) {
+            double tx = Math.random() * strenght;
+            double ty = Math.random() * strenght;
+            Movements.add(new Movement(
+                    new vect(tx * (Math.random() * 10 % 2 == 0 ? -1 : 1), ty * (Math.random() * 10 % 2 == 0 ? -1 : 1)),
+                    Math.random() * endurance + 1));
         }
     }
 
     public void mov(double tick) {
-        if(actual_mov < Movements.size()) {
-            if(start_dt_actual+ Movements.get(actual_mov).tick_len > tick) {
+        if (actual_mov < Movements.size()) {
+            if (start_dt_actual + Movements.get(actual_mov).tick_len > tick) {
                 velocity.add(Movements.get(actual_mov).strength);
             } else {
                 start_dt_actual = tick;
@@ -175,20 +186,25 @@ class Particule {
         velocity.add(strenght);
     }
 
-    public void process(double dt) {
+    public void process(double dt, Perlin1D p) {
+        if (position.y + ((mass * 10) / 2) > floor(position.x, p)) {
+            position.y = floor(position.x, p) - ((mass * 10) / 2);
+            prev_pos.y = floor(position.x, p) - ((mass * 10) / 2);
+            velocity.add(velocity.other().scale(-1)); // friction du sol
+
+        }
+
         vect new_prev_pos = position.other();
-        vect acc = velocity.other().scale(1.0/mass);
-        position.add(position.other().sub(prev_pos)).add(acc.scale(dt*dt));
+        velocity.add(velocity.other().scale(-0.1)); // friction de l'air
+        vect acc = velocity.other().scale(1.0 / mass);
+        position.add(position.other().sub(prev_pos)).add(acc.scale(dt * dt));
         prev_pos = new_prev_pos;
         velocity.reset();
-        if(position.y > floor(position.x)) {
-            position.y = floor(position.x);
-            prev_pos.y = floor(position.x);
-        }
     }
 
     public void draw(Window w) {
-        w.drawCircleFill((int) (position.x-(((mass*10/2)))), (int) (position.y-((mass*10)/2)), (int)mass*10, Color.cyan);
+        w.drawCircleFill((int) (position.x - (((mass * 10 / 2)))), (int) (position.y - ((mass * 10) / 2)),
+                (int) mass * 10, Color.cyan);
     }
 
     @Override
@@ -196,11 +212,9 @@ class Particule {
         return "Position: " + position.toString() + " Velocity: " + velocity.toString() + " Mass: " + mass;
     }
 
-    public static double floor(double x) {
-        return (Math.sin(x)
-        + 0.5 * Math.sin(3*x + 1.5)
-        + 0.25 * Math.cos(x *5))*100 + 1000;
-        //sin(x)+0.5 sin(3 x+1.5)+0.25 sin(5 x)
+    public static double floor(double x, Perlin1D p) {
+        return (p.get(x * 0.01) * 100.0) + 1000;
+        // sin(x)+0.5 sin(3 x+1.5)+0.25 sin(5 x)
     }
 
 }
@@ -218,7 +232,7 @@ class Stick {
 
     public void fix_() {
         vect delta = p2.position.other().sub(p1.position);
-        if(delta.norm() == size) {
+        if (delta.norm() == size) {
             return;
         }
         double d = delta.norm();
@@ -229,7 +243,7 @@ class Stick {
     }
 
     public void draw(Window w) {
-        w.drawLine((int)p1.position.x, (int) p1.position.y, (int) p2.position.x, (int) p2.position.y, 5, Color.white);
+        w.drawLine((int) p1.position.x, (int) p1.position.y, (int) p2.position.x, (int) p2.position.y, 5, Color.white);
     }
 
     @Override
@@ -247,19 +261,21 @@ class Entity {
         int nb_particules = (int) (Math.random() * nb_max_particules) + 1;
         int nb_sticks = (int) (Math.random() * nb_max_sticks) + 1;
 
-        double endurance = Math.random()*10;
-        double strength = Math.random()*200;
-        int inteligence =  (int) Math.random()*5 + 1;
+        double endurance = Math.random() * 0;
+        double strength = Math.random() * 1 + 1;
+        int inteligence = (int) Math.random() * 5 + 1;
 
         for (int i = 0; i < nb_particules; i++) {
-            Particule p = new Particule(new vect((int) (Math.random() * max_size_stick), (int) (Math.random() * max_size_stick)), new vect(0, 0), Math.random() * max_mass + 1, strength, endurance, inteligence);
+            Particule p = new Particule(
+                    new vect((int) (Math.random() * max_size_stick), (int) (Math.random() * max_size_stick)),
+                    new vect(0, 0), Math.random() * max_mass + 1, strength, endurance, inteligence);
             Particules.add(p);
         }
 
-        for(int i = 0; i < nb_sticks; i++) {
+        for (int i = 0; i < nb_sticks; i++) {
             int p1 = (int) (Math.random() * nb_particules);
             int p2 = (int) (Math.random() * nb_particules);
-            while(p1 == p2) {
+            while (p1 == p2) {
                 p2 = (int) (Math.random() * nb_particules);
             }
             Stick s = new Stick(Particules.get(p1), Particules.get(p2));
@@ -274,13 +290,13 @@ class Entity {
         for (int i = 0; i < connected.size(); i++) {
             Particule current = connected.get(i);
             for (Stick s : Sticks) {
-            if (s.p1 == current && !connected.contains(s.p2)) {
-                connected.add(s.p2);
-                connectedSticks.add(s);
-            } else if (s.p2 == current && !connected.contains(s.p1)) {
-                connected.add(s.p1);
-                connectedSticks.add(s);
-            }
+                if (s.p1 == current && !connected.contains(s.p2)) {
+                    connected.add(s.p2);
+                    connectedSticks.add(s);
+                } else if (s.p2 == current && !connected.contains(s.p1)) {
+                    connected.add(s.p1);
+                    connectedSticks.add(s);
+                }
             }
         }
 
@@ -306,10 +322,10 @@ class Entity {
         }
     }
 
-    public void process(double dt, double tick) {
+    public void process(double dt, double tick, Perlin1D pd) {
         for (Particule p : Particules) {
             p.mov(tick);
-            p.process(dt);
+            p.process(dt, pd);
         }
         gravity();
         for (Stick s : Sticks) {
